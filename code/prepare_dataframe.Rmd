@@ -1,0 +1,53 @@
+---
+title: "Prepare a dataframe"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
+```
+
+```{r libraries}
+library(tidyverse)
+library(here)
+
+select <- dplyr::select
+
+```
+
+Load word count and dictionary data:
+
+```{r load words and dicts, include=TRUE}
+
+wordcount <- read_csv(here("data", "wordcount.csv"), show_col_types = FALSE)
+dictionaries <- read_csv(here("data", "bila_dictionaries_withenv.csv"), show_col_types = FALSE)
+
+```
+
+Choose terms that you want to include:
+
+```{r terms, include=TRUE}
+
+
+```
+
+Choose dictionaries and languages that you want to include:
+
+```{r langs and dicts, include=TRUE}
+
+
+```
+
+Load the other dataset that you want to link:
+
+```{r load other data, include=TRUE}
+
+
+```
+
+Link the two datasets:
+
+```{r link datasets, include=TRUE}
+
+
+```
