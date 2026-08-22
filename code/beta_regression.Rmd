@@ -1,0 +1,111 @@
+---
+title: "Lexicalization analysis"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
+```
+
+```{r libraries}
+library(dplyr)
+library(tidyverse)
+library(here)
+library(glmmTMB)
+
+select <- dplyr::select
+```
+
+This notebook contains statistical analysis that examines the relationship between lexicalization (based on IDS data) and frequency (based on DoReCo data). You can use your own outcome variable, which is the average lexical elaboration, instead of lexicalization, and your own predictor variable, which is AoA (age-of-acquisition) or frequency based on Subtlex data.
+
+We first load the data and log-transform frequency variable.
+
+```{r main fig 1, include=TRUE}
+
+d <- read_csv(here("data/lexicalization", "lexicalization.csv"), show_col_types = FALSE) %>%
+  mutate(frequency = log(frequency))
+
+```
+
+# Statistical analyses
+
+The analysis here uses beta regression models. Please see Andrew Heiss's tutorial (posted on Canvas) for an introduction to the general approach. Here we'll take a frequentist approach here -- if you'd like to run Bayesian analyses at some stage you could try the `brms` package.
+
+We'll use beta regression models because the outcome variable is a continuous proportion bounded between 0 and 1, but excludes 0 and 1 themselves. 
+
+First, we run the full model that has the predictor variable.
+
+```{r frequentist, include=TRUE}
+
+# m1 is a "full model" that includes the frequency variable as a predictor
+m1 <- glmmTMB(lexicalization ~ frequency,
+                   data = d,
+                   family = beta_family(link = "logit"))
+
+# pull out regression coefficient for frequency
+beta_freq <- round(coef(summary(m1))$cond[2, "Estimate"], 2)
+summary(m1)
+```
+
+The positive coefficient for frequency indicates that increases in frequency tend to be associated with increases in lexicalization likelihood.  The magnitude of the coefficient indicates that increasing log-transformed frequency by 1 degree increases the log odds of lexicalization by `r beta_freq`.
+
+Now we run a "reduced" model that doesn't include frequency as a predictor:
+
+```{r}
+m2 <- glmmTMB(lexicalization ~ 1,
+                   data = d,
+                   family = beta_family(link = "logit"))
+
+summary(m2)
+```
+
+Now we compare the full and reduced models using a likelihood ratio test to see if including the frequency variable produces a significant improvement.
+
+```{r}
+a <- anova(m2, m1)
+
+# pull out p value and chi-squared statistic
+p_value <-  signif(a$"Pr(>Chisq)"[2] , digits=3)
+chi_sq <- signif(a$Chisq[2], digits=3)
+df <- a$Df[2]
+
+show(a)
+```
+
+The output indicates that there is a statistically significant relationship between frequency and  lexicalization  (p-value is around `r p_value` ).
+
+Here's how you might write this up:
+
+*  “We used R (R Core Team, 2012) and glmmTMB (M. E. Brooks et al., 2017) to perform a beta regression analysis of the relationship between frequency and lexicalization. The analysis revealed a statistically significant relationship between frequency and lexicalization ($\beta$ = `r beta_freq`  , $\chi^2$(`r df`) = `r chi_sq `, p =  `r p_value `, where the p-value is based on a likelihood ratio test comparing the full model with frequency as a fixed effect to a reduced model without frequency. The coefficient for frequency indicates that increasing log-transformed frequency by 1 degree increases the log odds of lexicalization by around `r beta_freq`.
+
+## Confidence intervals
+
+It's a good idea to report a confidence interval associated with the coefficient of interest (here frequency). This confidence interval can be computed using the `confint` function.
+
+```{r confint}
+ci <- confint(m1)
+```
+
+So the 95% confidence interval for the coefficient on frequency is 
+[`r round(ci[2,1], 2)`, `r round(ci[2,2], 2)`].
+
+# Plot the relationship
+
+We'll plot the relationship between frequency and lexicalization.
+
+```{r}
+
+# there is not built-in function in ggplot to plot beta regression lines
+# so we'll use beta regression fits to visualize:
+d <- d %>%
+  mutate(predicted = predict(m1, type = "response")) %>%
+  arrange(frequency)
+
+d %>% 
+  ggplot(aes(x = frequency, y = lexicalization)) +
+  geom_point(alpha = 0.5) +
+  geom_line(aes(x = frequency, y = predicted), color = "blue", linewidth = 0.5) +
+  theme_bw()
+```
+
+The plot suggests that more frequently used concepts are more likely to be lexicalized across languages, and this association was significant according the statistical analysis implemented above. 
